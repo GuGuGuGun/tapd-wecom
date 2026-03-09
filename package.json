@@ -1,0 +1,14 @@
+{
+  "name": "tapd-wecom",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenClaw TAPD + WeCom plugin",
+  "main": "index.ts",
+  "license": "UNLICENSED",
+  "openclaw": {
+    "extensions": [
+      "index.ts"
+    ]
+  }
+}
