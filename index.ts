@@ -85,6 +85,32 @@ function out(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }], details: data };
 }
 
+function parseNotifyFlag(options: any) {
+  const raw = options?.notify_wecom ?? options?.notifyWecom ?? options?.notify_group ?? options?.notifyGroup ?? options?.notify_to_group
+    ?? options?.notifyToGroup ?? options?.notify_to_wecom ?? options?.notifyToWecom ?? options?.notify ?? options?.notify_wecom_group;
+  if (typeof raw === 'string') {
+    const v = raw.trim().toLowerCase();
+    if (!v) return false;
+    return ['true', '1', 'yes', 'y', 'on', 'wecom', 'group', 'group_wecom', 'group-wecom'].includes(v);
+  }
+  return Boolean(raw);
+}
+
+function stripNotifyOptions(params: any) {
+  const options = { ...(params?.options || {}) } as any;
+  delete options.notify_wecom;
+  delete options.notifyWecom;
+  delete options.notify_group;
+  delete options.notifyGroup;
+  delete options.notify_to_group;
+  delete options.notifyToGroup;
+  delete options.notify_to_wecom;
+  delete options.notifyToWecom;
+  delete options.notify;
+  delete options.notify_wecom_group;
+  return { ...params, options };
+}
+
 function makeUrl(base: string | undefined, workspaceId: string | number, kind: string, id: string | number) {
   const b = String(base || 'https://www.tapd.cn').trim().replace(/\/$/, '');
   if (kind === 'bug') return `${b}/${workspaceId}/bugtrace/bugs/view/${id}`;
@@ -96,12 +122,22 @@ function makeUrl(base: string | undefined, workspaceId: string | number, kind: s
   return `${b}/${workspaceId}`;
 }
 
-async function notifyWecom(_api: OpenClawPluginApi, cfg: any, markdown: string) {
+function resolveWecomChannel(cfg: any, channel?: string) {
+  const raw = String(channel || cfg.wecomPreferredChannel || 'auto').trim().toLowerCase();
+  if (raw === 'webhook') return 'webhook';
+  if (raw === 'app') return 'app';
+  return 'auto';
+}
+
+async function notifyWecom(_api: OpenClawPluginApi, cfg: any, markdown: string, channel?: string) {
+  const preferred = resolveWecomChannel(cfg, channel);
   const result: Record<string, unknown> = {};
-  if (cfg.wecomWebhook) {
+  const allowWebhook = preferred === 'auto' || preferred === 'webhook';
+  const allowApp = preferred === 'auto' || preferred === 'app';
+  if (allowWebhook && cfg.wecomWebhook) {
     result.group = await sendWecomWebhook(cfg, markdown);
   }
-  if (cfg.wecomAppCorpId && cfg.wecomAppCorpSecret && cfg.wecomAppAgentId && cfg.wecomAppToUser) {
+  if (allowApp && cfg.wecomAppCorpId && cfg.wecomAppCorpSecret && cfg.wecomAppAgentId && cfg.wecomAppToUser) {
     result.user = await sendWecomAppMarkdownMessage(cfg, markdown);
   }
   return result;
@@ -143,14 +179,151 @@ const plugin = {
       return pluginCfg;
     };
 
+    const tapdPendingReminderInternal = async (runtimeCfg: any, params: any) => {
+      const requestedType = String(params.entity_type || 'all');
+      const targets = requestedType === 'all' ? ['stories', 'tasks', 'bugs'] : [requestedType];
+      const allItems: any[] = [];
+      const fetchedByType: Record<string, number> = {};
+
+      for (const entityType of targets) {
+        const scopedQuery = entityType === 'stories'
+          ? (params.stories_query || params.query || {})
+          : entityType === 'tasks'
+            ? (params.tasks_query || params.query || {})
+            : (params.bugs_query || params.query || {});
+        const result = entityType === 'bugs'
+          ? await tapdRpc(runtimeCfg, 'get_bug', {
+              workspace_id: params.workspace_id,
+              options: { limit: 200, page: 1, ...scopedQuery },
+            })
+          : await tapdRpc(runtimeCfg, 'get_stories_or_tasks', {
+              workspace_id: params.workspace_id,
+              options: { entity_type, limit: 200, page: 1, ...scopedQuery },
+            });
+        const items = normalizeTapdList(result).map((item: any) => ({ ...item, __entity_type: entityType }));
+        fetchedByType[entityType] = items.length;
+        allItems.push(...items);
+      }
+
+      const built = buildReminderMarkdown({ ...params, entity_type: requestedType }, allItems, runtimeCfg);
+      const notified = params.dry_run ? null : await notifyWecom(api, runtimeCfg, built.markdown, params.notify_channel || 'webhook');
+      return {
+        ok: true,
+        entity_type: requestedType,
+        workspace_id: params.workspace_id,
+        totalFetched: allItems.length,
+        fetchedByType,
+        totalOpen: built.totalOpen,
+        summary: built.summary,
+        markdown: built.markdown,
+        notified,
+      };
+    };
+
+    const startReminderCron = () => {
+      const runtimeCfg = cfg();
+      const cronExpr = String(runtimeCfg.reminderCron || '').trim();
+      if (!cronExpr) return;
+      let CronJob: any;
+      try {
+        const cronPkg = require('cron');
+        CronJob = cronPkg.CronJob || cronPkg.default || cronPkg;
+      } catch (err) {
+        api.logger?.warn?.('tapd-wecom: reminderCron is set but cron package is missing');
+        return;
+      }
+      try {
+        const timeZone = String(runtimeCfg.reminderCronTimezone || 'Asia/Shanghai');
+        const job = new CronJob(cronExpr, async () => {
+          try {
+            await tapdPendingReminderInternal(runtimeCfg, {
+              workspace_id: runtimeCfg.tapdWorkspaceId,
+              entity_type: runtimeCfg.reminderEntityType || 'all',
+              query: runtimeCfg.reminderQuery,
+              stories_query: runtimeCfg.reminderStoriesQuery,
+              tasks_query: runtimeCfg.reminderTasksQuery,
+              bugs_query: runtimeCfg.reminderBugsQuery,
+              assignee_field: runtimeCfg.reminderAssigneeField,
+              done_statuses: runtimeCfg.reminderDoneStatuses,
+              excluded_assignees: runtimeCfg.reminderExcludedAssignees,
+              notify_channel: runtimeCfg.reminderNotifyChannel || 'webhook',
+            });
+          } catch (err) {
+            api.logger?.error?.('tapd-wecom: reminderCron run failed', err);
+          }
+        }, null, false, timeZone);
+        job.start();
+        api.logger?.info?.(`tapd-wecom: reminderCron scheduled (${cronExpr}) tz=${timeZone}`);
+      } catch (err) {
+        api.logger?.error?.('tapd-wecom: reminderCron schedule failed', err);
+      }
+    };
+
+    startReminderCron();
+
+    api.registerTool({
+      name: 'tapd_configure_reminder',
+      description: '配置 tapd-wecom 的定时巡检（保存到运行时配置，需重启插件生效）。',
+      parameters: Type.Object({
+        cron: Type.String(),
+        cron_timezone: Type.Optional(Type.String({ default: 'Asia/Shanghai' })),
+        entity_type: Type.Optional(Type.String({ default: 'all' })),
+        notify_channel: Type.Optional(Type.String({ default: 'webhook' })),
+        query: Type.Optional(Type.Any()),
+        stories_query: Type.Optional(Type.Any()),
+        tasks_query: Type.Optional(Type.Any()),
+        bugs_query: Type.Optional(Type.Any()),
+        assignee_field: Type.Optional(Type.String()),
+        done_statuses: Type.Optional(Type.String()),
+        excluded_assignees: Type.Optional(Type.String()),
+      }),
+      async execute(_id, params: any) {
+        const runtimeCfg = cfg();
+        const next = {
+          ...runtimeCfg,
+          reminderCron: params.cron,
+          reminderCronTimezone: params.cron_timezone || runtimeCfg.reminderCronTimezone || 'Asia/Shanghai',
+          reminderEntityType: params.entity_type || runtimeCfg.reminderEntityType || 'all',
+          reminderNotifyChannel: params.notify_channel || runtimeCfg.reminderNotifyChannel || 'webhook',
+          reminderQuery: params.query || runtimeCfg.reminderQuery,
+          reminderStoriesQuery: params.stories_query || runtimeCfg.reminderStoriesQuery,
+          reminderTasksQuery: params.tasks_query || runtimeCfg.reminderTasksQuery,
+          reminderBugsQuery: params.bugs_query || runtimeCfg.reminderBugsQuery,
+          reminderAssigneeField: params.assignee_field || runtimeCfg.reminderAssigneeField,
+          reminderDoneStatuses: params.done_statuses || runtimeCfg.reminderDoneStatuses,
+          reminderExcludedAssignees: params.excluded_assignees || runtimeCfg.reminderExcludedAssignees,
+        };
+        const output = {
+          ok: true,
+          reminderCron: next.reminderCron,
+          reminderCronTimezone: next.reminderCronTimezone,
+          reminderEntityType: next.reminderEntityType,
+          reminderNotifyChannel: next.reminderNotifyChannel,
+          reminderQuery: next.reminderQuery,
+          reminderStoriesQuery: next.reminderStoriesQuery,
+          reminderTasksQuery: next.reminderTasksQuery,
+          reminderBugsQuery: next.reminderBugsQuery,
+          reminderAssigneeField: next.reminderAssigneeField,
+          reminderDoneStatuses: next.reminderDoneStatuses,
+          reminderExcludedAssignees: next.reminderExcludedAssignees,
+        };
+        return out({
+          ok: true,
+          message: '已更新运行时配置（需要重启插件生效）。',
+          config: output,
+        });
+      },
+    }, OPTIONAL_TOOL);
+
     const registerProxy = (name: string, schema: any, after?: (params: any, result: any) => Promise<any>) => {
       api.registerTool({
         name,
         description: `Proxy TAPD MCP tool ${name}`,
         parameters: schema,
         async execute(_id, params: any) {
-          const result = await tapdRpc(cfg(), name, params);
-          const patched = after ? await after(params, result) : result;
+          const cleaned = stripNotifyOptions(params);
+          const result = await tapdRpc(cfg(), name, cleaned);
+          const patched = after ? await after(cleaned, result) : result;
           return out(patched);
         },
       }, OPTIONAL_TOOL);
@@ -187,11 +360,26 @@ const plugin = {
       return tapdRpc(cfg(), 'add_timesheets', params);
     });
 
-    registerProxy('create_bug', Type.Object({ workspace_id: Type.String(), title: Type.String(), options: Type.Optional(Type.Any()) }), async (params, result) => {
+    registerProxy('create_bug', Type.Object({
+      workspace_id: Type.String(),
+      title: Type.String(),
+      options: Type.Optional(Type.Object({
+        notify_wecom: Type.Optional(Type.Boolean()),
+        notifyWecom: Type.Optional(Type.Boolean()),
+        notify_group: Type.Optional(Type.Boolean()),
+        notifyGroup: Type.Optional(Type.Boolean()),
+        notify_to_group: Type.Optional(Type.Boolean()),
+        notifyToGroup: Type.Optional(Type.Boolean()),
+        notify_to_wecom: Type.Optional(Type.Boolean()),
+        notifyToWecom: Type.Optional(Type.Boolean()),
+        notify: Type.Optional(Type.Boolean()),
+        notify_wecom_group: Type.Optional(Type.Boolean()),
+      }, { additionalProperties: true })),
+    }), async (params, result) => {
       const id = result?.id || result?.data?.id || result?.Bug?.id || result?.data?.Bug?.id;
       const url = id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, 'bug', id) : undefined;
       const markdown = id ? `# TAPD 缺陷创建通知\n> 项目: ${params.workspace_id}\n> 标题: ${params.title}\n> 缺陷ID: ${id}\n> 链接: ${url}` : undefined;
-      const notified = markdown ? await notifyWecom(api, cfg(), markdown) : null;
+      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown) : null;
       return { ...result, url, notified };
     });
     registerProxy('update_bug', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
@@ -211,12 +399,28 @@ const plugin = {
       return { ...result, url: id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, 'tcase', id) : undefined };
     });
     registerProxy('get_tcases', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
-    registerProxy('create_story_or_task', Type.Object({ workspace_id: Type.String(), name: Type.String(), options: Type.Any() }), async (params, result) => {
+    registerProxy('create_story_or_task', Type.Object({
+      workspace_id: Type.String(),
+      name: Type.String(),
+      options: Type.Object({
+        entity_type: Type.Optional(Type.String()),
+        notify_wecom: Type.Optional(Type.Boolean()),
+        notifyWecom: Type.Optional(Type.Boolean()),
+        notify_group: Type.Optional(Type.Boolean()),
+        notifyGroup: Type.Optional(Type.Boolean()),
+        notify_to_group: Type.Optional(Type.Boolean()),
+        notifyToGroup: Type.Optional(Type.Boolean()),
+        notify_to_wecom: Type.Optional(Type.Boolean()),
+        notifyToWecom: Type.Optional(Type.Boolean()),
+        notify: Type.Optional(Type.Boolean()),
+        notify_wecom_group: Type.Optional(Type.Boolean()),
+      }, { additionalProperties: true }),
+    }), async (params, result) => {
       const entity = params.options?.entity_type === 'tasks' ? 'task' : 'story';
       const id = result?.id || result?.data?.id || result?.Story?.id || result?.Task?.id || result?.data?.Story?.id || result?.data?.Task?.id;
       const url = id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, entity, id) : undefined;
       const markdown = id ? `# TAPD ${entity === 'task' ? '任务' : '需求'}创建通知\n> 项目: ${params.workspace_id}\n> 标题: ${params.name}\n> ${entity === 'task' ? '任务' : '需求'}ID: ${id}\n> 链接: ${url}` : undefined;
-      const notified = markdown ? await notifyWecom(api, cfg(), markdown) : null;
+      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown) : null;
       return { ...result, url, notified };
     });
     registerProxy('update_story_or_task', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
@@ -333,46 +537,11 @@ const plugin = {
         excluded_assignees: Type.Optional(Type.String()),
         limit_per_owner: Type.Optional(Type.Number()),
         dry_run: Type.Optional(Type.Boolean()),
+        notify_channel: Type.Optional(Type.String({ default: 'webhook' })),
       }),
       async execute(_id, params: any) {
-        const requestedType = String(params.entity_type || 'all');
-        const targets = requestedType === 'all' ? ['stories', 'tasks', 'bugs'] : [requestedType];
-        const allItems: any[] = [];
-        const fetchedByType: Record<string, number> = {};
-
-        for (const entityType of targets) {
-          const scopedQuery = entityType === 'stories'
-            ? (params.stories_query || params.query || {})
-            : entityType === 'tasks'
-              ? (params.tasks_query || params.query || {})
-              : (params.bugs_query || params.query || {});
-          const result = entityType === 'bugs'
-            ? await tapdRpc(cfg(), 'get_bug', {
-                workspace_id: params.workspace_id,
-                options: { limit: 200, page: 1, ...scopedQuery },
-              })
-            : await tapdRpc(cfg(), 'get_stories_or_tasks', {
-                workspace_id: params.workspace_id,
-                options: { entity_type, limit: 200, page: 1, ...scopedQuery },
-              });
-          const items = normalizeTapdList(result).map((item: any) => ({ ...item, __entity_type: entityType }));
-          fetchedByType[entityType] = items.length;
-          allItems.push(...items);
-        }
-
-        const built = buildReminderMarkdown({ ...params, entity_type: requestedType }, allItems, cfg());
-        const notified = params.dry_run ? null : await notifyWecom(api, cfg(), built.markdown);
-        return out({
-          ok: true,
-          entity_type: requestedType,
-          workspace_id: params.workspace_id,
-          totalFetched: allItems.length,
-          fetchedByType,
-          totalOpen: built.totalOpen,
-          summary: built.summary,
-          markdown: built.markdown,
-          notified,
-        });
+        const result = await tapdPendingReminderInternal(cfg(), params);
+        return out(result);
       },
     }, OPTIONAL_TOOL);
 

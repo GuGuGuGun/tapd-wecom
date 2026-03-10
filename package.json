@@ -10,5 +10,8 @@
     "extensions": [
       "index.ts"
     ]
+  },
+  "dependencies": {
+    "cron": "^3.1.7"
   }
 }

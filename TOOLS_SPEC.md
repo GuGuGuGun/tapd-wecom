@@ -36,6 +36,7 @@ Implemented priority tools:
 - get_workspace_info
 - send_qiwei_message
 - tapd_pending_reminder
+- tapd_configure_reminder
 - update_bug
 - update_comments
 - update_iteration

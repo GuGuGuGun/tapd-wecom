@@ -95,7 +95,27 @@ OpenClaw 插件：用于 TAPD 查询/写入与企业微信通知投递。
 - `tapd_webhook_preview`
 - `tapd_webhook_forward`
 - `tapd_pending_reminder`
+- `tapd_configure_reminder`
 - `tapd_wecom_test`
+
+## 定时巡检未完成项
+
+插件可在启动时根据配置自动巡检并通知（群机器人）。
+
+在 `openclaw.json` 的 `plugins.entries["tapd-wecom"].config` 中设置：
+
+- `reminderCron`: cron 表达式（例如 `0 9 * * 1-5` 表示工作日 09:00）
+- `reminderEntityType`: `stories|tasks|bugs|all`
+- `reminderNotifyChannel`: `webhook|app|auto`（本次默认 webhook）
+- `reminderQuery`/`reminderStoriesQuery`/`reminderTasksQuery`/`reminderBugsQuery`: 过滤条件
+- `reminderAssigneeField` / `reminderDoneStatuses` / `reminderExcludedAssignees`
+
+也可以通过工具 `tapd_configure_reminder` 更新配置（需重启插件生效）。
+
+## 创建时通知
+
+`create_story_or_task` / `create_bug` 仅在 `options.notify_* = true` 时通知。
+支持字段：`notify_wecom` / `notifyGroup` / `notify_to_group` / `notify` 等。
 
 ## 验证说明
 

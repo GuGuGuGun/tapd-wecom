@@ -1,1 +1,102 @@
-{"id":"tapd-wecom","name":"TAPD + WeCom","description":"TAPD query and WeCom linked notification tools","version":"0.1.0","configSchema":{"type":"object","additionalProperties":false,"properties":{"tapdBaseUrl":{"type":"string"},"tapdAccessToken":{"type":"string"},"tapdWorkspaceId":{"type":"string"},"wecomWebhook":{"type":"string"},"mcpBaseUrl":{"type":"string"},"mcpToken":{"type":"string"},"tapdApiUser":{"type":"string"},"tapdApiPassword":{"type":"string"},"currentUserNick":{"type":"string"},"wecomAppCorpId":{"type":"string"},"wecomAppCorpSecret":{"type":"string"},"wecomAppAgentId":{"type":"string"},"wecomAppToUser":{"type":"string"},"wecomAppApiBaseUrl":{"type":"string"},"wecomPreferredChannel":{"type":"string","enum":["auto","webhook","app"]},"reminderAssigneeField":{"type":"string"},"reminderDoneStatuses":{"type":"string"},"reminderExcludedAssignees":{"type":"string"}}}}
+{
+  "id": "tapd-wecom",
+  "name": "TAPD + WeCom",
+  "description": "TAPD query and WeCom linked notification tools",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "tapdBaseUrl": {
+        "type": "string"
+      },
+      "tapdAccessToken": {
+        "type": "string"
+      },
+      "tapdWorkspaceId": {
+        "type": "string"
+      },
+      "wecomWebhook": {
+        "type": "string"
+      },
+      "mcpBaseUrl": {
+        "type": "string"
+      },
+      "mcpToken": {
+        "type": "string"
+      },
+      "tapdApiUser": {
+        "type": "string"
+      },
+      "tapdApiPassword": {
+        "type": "string"
+      },
+      "currentUserNick": {
+        "type": "string"
+      },
+      "wecomAppCorpId": {
+        "type": "string"
+      },
+      "wecomAppCorpSecret": {
+        "type": "string"
+      },
+      "wecomAppAgentId": {
+        "type": "string"
+      },
+      "wecomAppToUser": {
+        "type": "string"
+      },
+      "wecomAppApiBaseUrl": {
+        "type": "string"
+      },
+      "wecomPreferredChannel": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "webhook",
+          "app"
+        ]
+      },
+      "reminderAssigneeField": {
+        "type": "string"
+      },
+      "reminderDoneStatuses": {
+        "type": "string"
+      },
+      "reminderExcludedAssignees": {
+        "type": "string"
+      },
+      "reminderCron": {
+        "type": "string",
+        "description": "Cron expression for periodic pending reminder (optional)"
+      },
+      "reminderEntityType": {
+        "type": "string",
+        "description": "stories|tasks|bugs|all",
+        "default": "all"
+      },
+      "reminderNotifyChannel": {
+        "type": "string",
+        "description": "webhook|app|auto",
+        "default": "webhook"
+      },
+      "reminderQuery": {
+        "type": "object"
+      },
+      "reminderStoriesQuery": {
+        "type": "object"
+      },
+      "reminderTasksQuery": {
+        "type": "object"
+      },
+      "reminderBugsQuery": {
+        "type": "object"
+      },
+      "reminderCronTimezone": {
+        "type": "string",
+        "description": "Timezone for reminderCron (default Asia/Shanghai)",
+        "default": "Asia/Shanghai"
+      }
+    }
+  }
+}

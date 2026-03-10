@@ -45,6 +45,7 @@ const params = {
   excluded_assignees: argv.excludedAssignees,
   limit_per_owner: argv.limitPerOwner ? Number(argv.limitPerOwner) : undefined,
   dry_run: Boolean(argv.dryRun),
+  notify_channel: String(argv.notifyChannel || 'webhook'),
 };
 
 if (!params.workspace_id) throw new Error('workspace_id missing; provide --workspace or set tapdWorkspaceId in config');
