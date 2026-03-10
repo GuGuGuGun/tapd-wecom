@@ -241,6 +241,7 @@ plugins.entries["tapd-wecom"].config
 - 缺陷创建：`# 🐞 TAPD 缺陷已创建`
 - 需求/任务创建：`# ✅ TAPD 需求/任务已创建`
 - 事件通知：`# 🔔 TAPD 事件通知`
+- 未完成项提醒：`# TAPD 未完成项提醒（完整清单）`
 
 ## 开发说明
 

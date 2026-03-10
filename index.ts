@@ -30,7 +30,6 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
   const doneStatuses = parseCsvSet(args.done_statuses || cfg.reminderDoneStatuses || '已关闭,关闭,done,closed,完成,已完成,resolved');
   const excludedAssignees = parseCsvSet(args.excluded_assignees || cfg.reminderExcludedAssignees || '');
   const assigneeField = pickFirst(args.assignee_field, cfg.reminderAssigneeField, 'owner');
-  const limitPerOwner = Number(args.limit_per_owner || 5);
   const workspaceId = String(args.workspace_id || cfg.tapdWorkspaceId || '');
   const requestedType = String(args.entity_type || 'all');
   const groups = new Map<string, any[]>();
@@ -46,12 +45,16 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
   }
 
   const owners = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+  const totalOpen = owners.reduce((sum, [, list]) => sum + list.length, 0);
+  const now = new Date();
+  const nowCn = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
   const lines = [
-    '# TAPD 未完成项提醒',
+    '# TAPD 未完成项提醒（完整清单）',
     `> 项目: ${workspaceId}`,
     `> 类型: ${requestedType}`,
+    `> 生成时间: ${nowCn}`,
     `> 未完成负责人: ${owners.length}`,
-    `> 未完成项总数: ${owners.reduce((sum, [, list]) => sum + list.length, 0)}`,
+    `> 未完成项总数: ${totalOpen}`,
   ];
 
   if (!owners.length) {
@@ -61,7 +64,7 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
 
   for (const [owner, list] of owners) {
     lines.push(`\n## ${owner}（${list.length}）`);
-    for (const item of list.slice(0, limitPerOwner)) {
+    for (const item of list) {
       const id = pickFirst(item.id);
       const title = pickFirst(item.name, item.title, '(无标题)');
       const status = pickFirst(item.status, item.workflow_step, item.flow_status, '未知状态');
@@ -69,14 +72,13 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
       const entityKind = entityType === 'tasks' ? 'task' : entityType === 'bugs' ? 'bug' : 'story';
       const typeLabel = entityType === 'tasks' ? '任务' : entityType === 'bugs' ? '缺陷' : '需求';
       const url = id ? makeUrl(cfg.tapdBaseUrl, workspaceId, entityKind, id) : '';
-      lines.push(`- [${typeLabel}] ${title} [${status}]${url ? ` <${url}>` : ''}`);
+      lines.push(`- [${typeLabel}] ${title}｜ID: ${id || '-'}｜状态: ${status}${url ? `｜链接: <${url}>` : ''}`);
     }
-    if (list.length > limitPerOwner) lines.push(`- 其余 ${list.length - limitPerOwner} 项未展开`);
   }
 
   return {
     markdown: lines.join('\n'),
-    totalOpen: owners.reduce((sum, [, list]) => sum + list.length, 0),
+    totalOpen,
     summary: owners.map(([owner, list]) => ({ owner, count: list.length })),
   };
 }
