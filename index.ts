@@ -75,6 +75,22 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
       ...headerLines,
       `\n## ${owner}（${list.length}）`,
     ];
+
+    if (owner === '未分配') {
+      const counts = { stories: 0, tasks: 0, bugs: 0 } as Record<string, number>;
+      for (const item of list) {
+        const entityType = pickFirst(item.__entity_type, requestedType === 'all' ? 'stories' : requestedType);
+        if (entityType === 'tasks') counts.tasks += 1;
+        else if (entityType === 'bugs') counts.bugs += 1;
+        else counts.stories += 1;
+      }
+      lines.push(`- 需求：${counts.stories}`);
+      lines.push(`- 任务：${counts.tasks}`);
+      lines.push(`- 缺陷：${counts.bugs}`);
+      lines.push('- 未分配项已精简展示，请尽快指派负责人后查看明细。');
+      return { owner, markdown: lines.join('\n'), count: list.length };
+    }
+
     for (const item of list) {
       const id = pickFirst(item.id);
       const title = pickFirst(item.name, item.title, '(无标题)');
