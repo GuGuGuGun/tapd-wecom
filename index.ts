@@ -57,7 +57,7 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
   const totalOpen = owners.reduce((sum, [, list]) => sum + list.length, 0);
   const now = new Date();
   const nowCn = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
-  const lines = [
+  const headerLines = [
     '# TAPD 未完成项提醒（完整清单）',
     `> 项目: ${workspaceId}`,
     `> 类型: ${requestedType}`,
@@ -67,12 +67,14 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
   ];
 
   if (!owners.length) {
-    lines.push('> 当前没有需要提醒的未完成项 🎉');
-    return { markdown: lines.join('\n'), summary: [], totalOpen: 0 };
+    return { markdown: headerLines.concat('> 当前没有需要提醒的未完成项 🎉').join('\n'), summary: [], totalOpen: 0, chunks: [] };
   }
 
-  for (const [owner, list] of owners) {
-    lines.push(`\n## ${owner}（${list.length}）`);
+  const chunks = owners.map(([owner, list]) => {
+    const lines = [
+      ...headerLines,
+      `\n## ${owner}（${list.length}）`,
+    ];
     for (const item of list) {
       const id = pickFirst(item.id);
       const title = pickFirst(item.name, item.title, '(无标题)');
@@ -83,10 +85,14 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
       const url = id ? makeUrl(cfg.tapdBaseUrl, workspaceId, entityKind, id) : '';
       lines.push(`- [${typeLabel}] ${title}｜ID: ${id || '-'}｜状态: ${status}${url ? `｜链接: <${url}>` : ''}`);
     }
-  }
+    return { owner, markdown: lines.join('\n'), count: list.length };
+  });
+
+  const markdown = chunks.map(chunk => chunk.markdown).join('\n\n');
 
   return {
-    markdown: lines.join('\n'),
+    markdown,
+    chunks,
     totalOpen,
     summary: owners.map(([owner, list]) => ({ owner, count: list.length })),
   };
@@ -234,7 +240,19 @@ const plugin = {
       }
 
       const built = buildReminderMarkdown({ ...params, entity_type: requestedType }, allItems, runtimeCfg);
-      const notified = params.dry_run ? null : await notifyWecom(api, runtimeCfg, built.markdown, params.notify_channel || 'webhook');
+      let notified: any = null;
+      if (!params.dry_run) {
+        if (built.chunks && built.chunks.length) {
+          const results = [] as any[];
+          for (const chunk of built.chunks) {
+            const res = await notifyWecom(api, runtimeCfg, chunk.markdown, params.notify_channel || 'webhook');
+            results.push({ owner: chunk.owner, count: chunk.count, result: res });
+          }
+          notified = { mode: 'by_owner', results };
+        } else {
+          notified = await notifyWecom(api, runtimeCfg, built.markdown, params.notify_channel || 'webhook');
+        }
+      }
       return {
         ok: true,
         entity_type: requestedType,
