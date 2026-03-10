@@ -67,17 +67,17 @@ OpenClaw 插件：用于 TAPD 查询/写入与企业微信通知投递。
         "enabled": true,
         "config": {
           "tapdBaseUrl": "https://www.tapd.cn",
-          "tapdWorkspaceId": "67411607",
+          "tapdWorkspaceId": "6",
           "mcpBaseUrl": "https://api.tapd.cn",
           "tapdAccessToken": "<token>",
           "tapdApiUser": "<user>",
           "tapdApiPassword": "<password>",
-          "currentUserNick": "JiangMingKai",
+          "currentUserNick": "J",
           "wecomWebhook": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...",
           "wecomAppCorpId": "ww...",
           "wecomAppCorpSecret": "...",
           "wecomAppAgentId": "1000003",
-          "wecomAppToUser": "JiangMingKai"
+          "wecomAppToUser": "J"
         }
       }
     }
