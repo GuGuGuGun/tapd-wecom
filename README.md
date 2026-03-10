@@ -1,30 +1,30 @@
 # tapd-wecom
 
-OpenClaw plugin that connects TAPD with WeCom (企业微信). It exposes TAPD read/write tools and can deliver notifications to WeCom via group robot webhook or app markdown messages.
+OpenClaw 插件：连接 TAPD 与企业微信（WeCom），提供 TAPD 读写工具，并支持通过群机器人 webhook / 应用消息进行通知。
 
-## Features
+## 功能
 
-- TAPD proxy tools (stories, tasks, bugs, comments, iterations, test cases, wiki, timesheets, workflow metadata)
-- Create entities with direct TAPD URLs attached
-- WeCom delivery:
-  - Group robot webhook
-  - WeCom app markdown message
-- Webhook preview/forward helpers
-- Built-in integration test tool (`tapd_wecom_test`)
+- TAPD 代理工具（需求/任务/缺陷/评论/迭代/用例/Wiki/工时/工作流元数据等）
+- 创建实体时自动补充 TAPD 直达链接
+- 企业微信通知投递：
+  - 群机器人 webhook
+  - 企业微信应用 Markdown 消息
+- webhook 预览与转发工具
+- 集成测试工具：`tapd_wecom_test`
 
-## Installation (OpenClaw)
+## 安装（OpenClaw）
 
-### 1) Clone or place the plugin
+### 1) 放置插件目录
 
-Put the plugin folder under your OpenClaw workspace:
+将插件放到 OpenClaw workspace：
 
 ```
 ~/.openclaw/workspace/plugins/tapd-wecom
 ```
 
-### 2) Enable the plugin in `openclaw.json`
+### 2) 在 `openclaw.json` 中启用插件
 
-Add the plugin path and entry:
+添加插件路径与配置：
 
 ```json
 {
@@ -58,42 +58,42 @@ Add the plugin path and entry:
 }
 ```
 
-### 3) Restart OpenClaw
+### 3) 重启 OpenClaw
 
-Restart your OpenClaw main process so the plugin loads.
+重启主进程以加载插件。
 
-### 4) Validate
+### 4) 验证
 
-Run the built-in test tool:
+运行测试工具：
 
 ```
 .tapd_wecom_test
 ```
 
-(or call the tool directly via OpenClaw UI/API)
+（或通过 OpenClaw UI/API 直接调用工具）
 
-## Configuration
+## 配置说明
 
-Required fields live under:
+配置路径：
 
 ```
 plugins.entries["tapd-wecom"].config
 ```
 
-Common fields:
+常用字段：
 
 - `tapdBaseUrl`
 - `tapdWorkspaceId`
 - `mcpBaseUrl`
-- `tapdAccessToken` or `tapdApiUser` + `tapdApiPassword`
+- `tapdAccessToken` 或 `tapdApiUser` + `tapdApiPassword`
 - `currentUserNick`
 - `wecomWebhook`
 - `wecomAppCorpId`, `wecomAppCorpSecret`, `wecomAppAgentId`, `wecomAppToUser`
-- `wecomPreferredChannel` (`webhook|app|auto`)
+- `wecomPreferredChannel`（`webhook|app|auto`）
 
-## Usage Examples
+## 使用示例
 
-### Create a bug and notify WeCom
+### 创建缺陷并通知企微
 
 ```json
 {
@@ -109,7 +109,7 @@ Common fields:
 }
 ```
 
-### Pending reminder (manual trigger)
+### 手动触发未完成项提醒
 
 ```json
 {
@@ -119,30 +119,30 @@ Common fields:
 }
 ```
 
-## Scheduled reminders
+## 定时巡检（未完成项）
 
-The plugin can run periodic reminders on startup using cron config:
+可通过配置在启动时自动巡检：
 
-- `reminderCron`: cron expression (e.g. `0 9 * * 1-5`)
-- `reminderCronTimezone`: timezone (e.g. `Asia/Shanghai`)
+- `reminderCron`: cron 表达式（如 `0 9 * * 1-5`）
+- `reminderCronTimezone`: 时区（如 `Asia/Shanghai`）
 - `reminderEntityType`: `stories|tasks|bugs|all`
 - `reminderNotifyChannel`: `webhook|app|auto`
-- Optional filters: `reminderQuery`, `reminderStoriesQuery`, `reminderTasksQuery`, `reminderBugsQuery`
+- 可选过滤：`reminderQuery` / `reminderStoriesQuery` / `reminderTasksQuery` / `reminderBugsQuery`
 
-> Note: `tapd_configure_reminder` only changes runtime config. To make reminders persistent across restarts, update `openclaw.json` and restart.
+> 注意：`tapd_configure_reminder` 仅更新运行时配置；若要重启后生效，必须写入 `openclaw.json` 并重启。
 
-## Notification templates (default)
+## 通知模板（默认）
 
-- Bug created: `# 🐞 TAPD 缺陷已创建`
-- Story/Task created: `# ✅ TAPD 需求/任务已创建`
-- Event: `# 🔔 TAPD 事件通知`
+- 缺陷创建：`# 🐞 TAPD 缺陷已创建`
+- 需求/任务创建：`# ✅ TAPD 需求/任务已创建`
+- 事件通知：`# 🔔 TAPD 事件通知`
 
-## Development
+## 开发说明
 
-- `index.ts` — plugin entry and tool definitions
-- `src/client.ts` — TAPD/WeCom client helpers
-- `openclaw.plugin.json` — plugin manifest + config schema
+- `index.ts` — 插件入口与工具定义
+- `src/client.ts` — TAPD/企业微信 客户端封装
+- `openclaw.plugin.json` — 插件清单与配置 schema
 
 ## License
 
-UNLICENSED (private/local use unless you choose to publish).
+UNLICENSED（私有/本地使用，除非你决定发布）。
