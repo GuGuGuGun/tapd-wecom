@@ -145,4 +145,4 @@ plugins.entries["tapd-wecom"].config
 
 ## License
 
-UNLICENSED（私有/本地使用，除非你决定发布）。
+MIT License
