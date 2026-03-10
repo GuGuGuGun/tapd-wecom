@@ -108,6 +108,8 @@ function stripNotifyOptions(params: any) {
   delete options.notifyToWecom;
   delete options.notify;
   delete options.notify_wecom_group;
+  delete options.notify_channel;
+  delete options.notifyChannel;
   return { ...params, options };
 }
 
@@ -131,14 +133,29 @@ function resolveWecomChannel(cfg: any, channel?: string) {
 
 async function notifyWecom(_api: OpenClawPluginApi, cfg: any, markdown: string, channel?: string) {
   const preferred = resolveWecomChannel(cfg, channel);
-  const result: Record<string, unknown> = {};
+  const result: Record<string, unknown> = { preferred };
   const allowWebhook = preferred === 'auto' || preferred === 'webhook';
   const allowApp = preferred === 'auto' || preferred === 'app';
+  let attempted = false;
   if (allowWebhook && cfg.wecomWebhook) {
-    result.group = await sendWecomWebhook(cfg, markdown);
+    attempted = true;
+    try {
+      result.group = await sendWecomWebhook(cfg, markdown);
+    } catch (err) {
+      result.group = { ok: false, error: String(err) };
+    }
   }
   if (allowApp && cfg.wecomAppCorpId && cfg.wecomAppCorpSecret && cfg.wecomAppAgentId && cfg.wecomAppToUser) {
-    result.user = await sendWecomAppMarkdownMessage(cfg, markdown);
+    attempted = true;
+    try {
+      result.user = await sendWecomAppMarkdownMessage(cfg, markdown);
+    } catch (err) {
+      result.user = { ok: false, error: String(err) };
+    }
+  }
+  if (!attempted) {
+    result.skipped = true;
+    result.reason = 'no_wecom_channel_configured';
   }
   return result;
 }
@@ -198,7 +215,7 @@ const plugin = {
             })
           : await tapdRpc(runtimeCfg, 'get_stories_or_tasks', {
               workspace_id: params.workspace_id,
-              options: { entity_type, limit: 200, page: 1, ...scopedQuery },
+              options: { limit: 200, page: 1, ...scopedQuery, entity_type: entityType },
             });
         const items = normalizeTapdList(result).map((item: any) => ({ ...item, __entity_type: entityType }));
         fetchedByType[entityType] = items.length;
@@ -323,7 +340,7 @@ const plugin = {
         async execute(_id, params: any) {
           const cleaned = stripNotifyOptions(params);
           const result = await tapdRpc(cfg(), name, cleaned);
-          const patched = after ? await after(cleaned, result) : result;
+          const patched = after ? await after(params, result) : result;
           return out(patched);
         },
       }, OPTIONAL_TOOL);
@@ -374,12 +391,15 @@ const plugin = {
         notifyToWecom: Type.Optional(Type.Boolean()),
         notify: Type.Optional(Type.Boolean()),
         notify_wecom_group: Type.Optional(Type.Boolean()),
+        notify_channel: Type.Optional(Type.String()),
+        notifyChannel: Type.Optional(Type.String()),
       }, { additionalProperties: true })),
     }), async (params, result) => {
       const id = result?.id || result?.data?.id || result?.Bug?.id || result?.data?.Bug?.id;
       const url = id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, 'bug', id) : undefined;
-      const markdown = id ? `# TAPD 缺陷创建通知\n> 项目: ${params.workspace_id}\n> 标题: ${params.title}\n> 缺陷ID: ${id}\n> 链接: ${url}` : undefined;
-      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown) : null;
+      const markdown = id ? `# 🐞 TAPD 缺陷已创建\n> 项目: ${params.workspace_id}\n> 标题: ${params.title}\n> ID: ${id}\n> 链接: ${url}` : undefined;
+      const notifyChannel = params.options?.notify_channel || params.options?.notifyChannel;
+      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown, notifyChannel) : null;
       return { ...result, url, notified };
     });
     registerProxy('update_bug', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
@@ -414,13 +434,17 @@ const plugin = {
         notifyToWecom: Type.Optional(Type.Boolean()),
         notify: Type.Optional(Type.Boolean()),
         notify_wecom_group: Type.Optional(Type.Boolean()),
+        notify_channel: Type.Optional(Type.String()),
+        notifyChannel: Type.Optional(Type.String()),
       }, { additionalProperties: true }),
     }), async (params, result) => {
       const entity = params.options?.entity_type === 'tasks' ? 'task' : 'story';
       const id = result?.id || result?.data?.id || result?.Story?.id || result?.Task?.id || result?.data?.Story?.id || result?.data?.Task?.id;
       const url = id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, entity, id) : undefined;
-      const markdown = id ? `# TAPD ${entity === 'task' ? '任务' : '需求'}创建通知\n> 项目: ${params.workspace_id}\n> 标题: ${params.name}\n> ${entity === 'task' ? '任务' : '需求'}ID: ${id}\n> 链接: ${url}` : undefined;
-      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown) : null;
+      const typeLabel = entity === 'task' ? '任务' : '需求';
+      const markdown = id ? `# ✅ TAPD ${typeLabel}已创建\n> 项目: ${params.workspace_id}\n> 标题: ${params.name}\n> ID: ${id}\n> 链接: ${url}` : undefined;
+      const notifyChannel = params.options?.notify_channel || params.options?.notifyChannel;
+      const notified = markdown && parseNotifyFlag(params.options) ? await notifyWecom(api, cfg(), markdown, notifyChannel) : null;
       return { ...result, url, notified };
     });
     registerProxy('update_story_or_task', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
@@ -474,7 +498,7 @@ const plugin = {
           : kind === 'task' ? makeUrl(cfg().tapdBaseUrl, workspaceId, 'task', id)
           : `${(cfg().tapdBaseUrl || 'https://www.tapd.cn').replace(/\/$/, '')}/${workspaceId}`;
         const markdown = [
-          '# TAPD 事件通知',
+          '# 🔔 TAPD 事件通知',
           `> 事件: ${event}`,
           `> 项目: ${workspaceId}`,
           `> 操作人: ${actor}`,
@@ -508,7 +532,7 @@ const plugin = {
           : kind === 'task' ? makeUrl(cfg().tapdBaseUrl, workspaceId, 'task', id)
           : `${(cfg().tapdBaseUrl || 'https://www.tapd.cn').replace(/\/$/, '')}/${workspaceId}`;
         const markdown = [
-          '# TAPD 事件通知',
+          '# 🔔 TAPD 事件通知',
           `> 事件: ${event}`,
           `> 项目: ${workspaceId}`,
           `> 操作人: ${actor}`,

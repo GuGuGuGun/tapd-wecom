@@ -117,6 +117,18 @@ OpenClaw 插件：用于 TAPD 查询/写入与企业微信通知投递。
 `create_story_or_task` / `create_bug` 仅在 `options.notify_* = true` 时通知。
 支持字段：`notify_wecom` / `notifyGroup` / `notify_to_group` / `notify` 等。
 
+新增：`notify_channel` / `notifyChannel` 可指定 `webhook|app|auto`，用于覆盖默认通知通道。
+
+通知模板（默认）：
+- 缺陷：`# 🐞 TAPD 缺陷已创建`
+- 需求/任务：`# ✅ TAPD 需求/任务已创建`
+- 事件：`# 🔔 TAPD 事件通知`
+
+通知返回会包含：
+- `preferred`（本次选择的通道）
+- `group` / `user`（实际发送结果）
+- 若无可用通道则返回 `skipped: true` 与原因
+
 ## 验证说明
 
 在真实 OpenClaw 运行环境中完成验证：

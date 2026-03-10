@@ -12,6 +12,7 @@
     ]
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.34.48",
     "cron": "^3.1.7"
   }
 }
