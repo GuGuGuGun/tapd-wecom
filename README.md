@@ -1,48 +1,48 @@
 # tapd-wecom
 
-OpenClaw plugin for TAPD query/mutation and WeCom notification delivery.
+OpenClaw 插件：用于 TAPD 查询/写入与企业微信通知投递。
 
-## What it does
+## 功能概览
 
-- Proxies common TAPD operations into OpenClaw tools
-- Creates TAPD bugs / stories / tasks / wiki / iterations / comments / timesheets
-- Adds direct TAPD URLs to created entities when possible
-- Sends WeCom notifications through:
-  - group robot webhook
-  - WeCom app markdown messages
-- Supports webhook preview / forwarding workflows
-- Includes an integration test tool: `tapd_wecom_test`
+- 将常见 TAPD 操作代理为 OpenClaw 工具
+- 创建 TAPD 缺陷 / 需求 / 任务 / Wiki / 迭代 / 评论 / 工时
+- 创建实体时尽可能补充直达 TAPD 的链接
+- 支持企业微信通知投递：
+  - 群机器人 webhook
+  - 企业微信应用的 Markdown 消息
+- 支持 webhook 预览 / 转发流程
+- 包含集成测试工具：`tapd_wecom_test`
 
-## Status
+## 状态
 
-This repository version is the **working, verified version**.
-It has been validated end-to-end for:
+此仓库版本为 **已验证可用** 的版本。
+已完成端到端验证：
 
-- TAPD read access
-- TAPD bug creation
-- WeCom webhook delivery
-- WeCom app delivery
+- TAPD 读取能力
+- TAPD 缺陷创建
+- 企业微信 webhook 投递
+- 企业微信应用投递
 
-## Important fix
+## 重要修复
 
-The key runtime fix in this version is:
+本版本的关键运行时修复：
 
-- plugin config must be read from **`api.pluginConfig`**
-- falling back to `api.getConfig?.()` is fine, but not sufficient in this runtime
+- 插件配置必须从 **`api.pluginConfig`** 读取
+- 允许回退到 `api.getConfig?.()`，但这不足以保证配置可用
 
-Without this fix, the plugin can load successfully while receiving an empty runtime config.
+没有此修复时，插件可以正常加载，但运行时拿到的配置为空。
 
-## Plugin layout
+## 插件结构
 
-- `index.ts` — plugin registration and tool definitions
-- `src/client.ts` — TAPD / WeCom client helpers
-- `openclaw.plugin.json` — plugin manifest and config schema
+- `index.ts` — 插件注册与工具定义
+- `src/client.ts` — TAPD / 企业微信 客户端帮助函数
+- `openclaw.plugin.json` — 插件清单与配置 schema
 
-## Required config
+## 必填配置
 
-Configure `plugins.entries["tapd-wecom"].config` in `openclaw.json`.
+在 `openclaw.json` 中配置 `plugins.entries["tapd-wecom"].config`。
 
-Typical fields:
+常见字段：
 
 - `tapdBaseUrl`
 - `tapdWorkspaceId`
@@ -57,7 +57,7 @@ Typical fields:
 - `wecomAppAgentId`
 - `wecomAppToUser`
 
-## Minimal example
+## 最小示例
 
 ```json
 {
@@ -85,7 +85,7 @@ Typical fields:
 }
 ```
 
-## Example tools
+## 示例工具
 
 - `get_stories_or_tasks`
 - `create_story_or_task`
@@ -97,30 +97,30 @@ Typical fields:
 - `tapd_pending_reminder`
 - `tapd_wecom_test`
 
-## Verification notes
+## 验证说明
 
-Validated in a live OpenClaw runtime with:
+在真实 OpenClaw 运行环境中完成验证：
 
-- successful TAPD workspace query
-- successful `get_stories_or_tasks`
-- successful `create_bug`
-- successful WeCom webhook push
-- successful WeCom app push
+- 成功查询 TAPD 工作区
+- 成功执行 `get_stories_or_tasks`
+- 成功执行 `create_bug`
+- 成功推送企业微信 webhook
+- 成功推送企业微信应用消息
 
-## Usage
+## 使用步骤
 
-1. Ensure plugin path is listed in `plugins.load.paths`
-2. Enable `plugins.entries.tapd-wecom.enabled`
-3. Fill config in `openclaw.json`
-4. Restart gateway
-5. Run `tapd_wecom_test`
+1. 确认插件路径已加入 `plugins.load.paths`
+2. 启用 `plugins.entries.tapd-wecom.enabled`
+3. 在 `openclaw.json` 中填入配置
+4. 重启 gateway
+5. 运行 `tapd_wecom_test`
 
 ## Skill
 
-This plugin ships with a companion skill guide at:
+本插件附带技能指南：
 
 - `../../skills/tapd-wecom/SKILL.md`
 
-## License
+## 许可
 
-Private / workspace-local unless you choose to publish it.
+私有 / 本地仓库使用，除非你选择发布。 
