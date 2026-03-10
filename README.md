@@ -5,6 +5,11 @@ OpenClaw 插件：连接 TAPD 与企业微信（WeCom），提供 TAPD 读写工
 ## 功能
 
 - TAPD 代理工具（需求/任务/缺陷/评论/迭代/用例/Wiki/工时/工作流元数据等）
+- 附件/图片下载（attachments/image）
+- 用户待办（story/bug/task todo）
+- 需求分类/类型与字段配置查询
+- 用例批量创建（tcases batch save）
+- SCM 关键字（scm copy keywords）
 - 创建实体时自动补充 TAPD 直达链接
 - 企业微信通知投递：
   - 群机器人 webhook
@@ -116,6 +121,106 @@ plugins.entries["tapd-wecom"].config
   "workspace_id": "67411607",
   "entity_type": "all",
   "notify_channel": "webhook"
+}
+```
+
+### 获取附件下载链接
+
+```json
+{
+  "workspace_id": "67411607",
+  "options": {
+    "id": "1167411607001000013"
+  }
+}
+```
+
+### 获取图片下载链接
+
+```json
+{
+  "workspace_id": "67411607",
+  "options": {
+    "image_path": "/tfl/captures/2023-07/xxx.png"
+  }
+}
+```
+
+### 批量创建用例
+
+```json
+{
+  "workspace_id": "67411607",
+  "tcases": [
+    {
+      "name": "登录正确账号",
+      "precondition": "已注册账号",
+      "steps": "输入账号密码 -> 点击登录",
+      "expected": "登录成功"
+    }
+  ]
+}
+```
+
+### 获取用户待办（story/bug/task）
+
+```json
+{
+  "workspace_id": "67411607"
+}
+```
+
+### 获取需求分类
+
+```json
+{
+  "workspace_id": "67411607",
+  "options": {
+    "name": "%搜索词%"
+  }
+}
+```
+
+### 获取字段配置
+
+```json
+{
+  "workspace_id": "67411607"
+}
+```
+
+### 获取 SCM 关键字
+
+```json
+{
+  "workspace_id": "67411607",
+  "options": {
+    "id": "123"
+  }
+}
+```
+
+### 获取需求字段标签
+
+```json
+{
+  "workspace_id": "67411607"
+}
+```
+
+### 获取缺陷自定义字段
+
+```json
+{
+  "workspace_id": "67411607"
+}
+```
+
+### 获取用例自定义字段
+
+```json
+{
+  "workspace_id": "67411607"
 }
 ```
 

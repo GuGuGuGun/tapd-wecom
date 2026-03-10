@@ -419,6 +419,10 @@ const plugin = {
       return { ...result, url: id ? makeUrl(cfg().tapdBaseUrl, params.workspace_id, 'tcase', id) : undefined };
     });
     registerProxy('get_tcases', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
+    registerProxy('create_tcases_batch_save', Type.Object({
+      workspace_id: Type.String(),
+      tcases: Type.Array(Type.Any()),
+    }));
     registerProxy('create_story_or_task', Type.Object({
       workspace_id: Type.String(),
       name: Type.String(),
@@ -459,11 +463,21 @@ const plugin = {
     registerProxy('entity_relations', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_entity_custom_fields', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_image', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
+    registerProxy('get_attachments', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
+    registerProxy('get_attachment_download_url', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_related_bugs', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_release_info', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
     registerProxy('get_stories_fields_info', Type.Object({ workspace_id: Type.String() }));
+    registerProxy('get_stories_fields_lable', Type.Object({ workspace_id: Type.String() }));
+    registerProxy('get_tcases_custom_fields_settings', Type.Object({ workspace_id: Type.String() }));
+    registerProxy('get_bug_custom_fields', Type.Object({ workspace_id: Type.String() }));
+    registerProxy('get_category_id', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_commit_msg', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
+    registerProxy('get_scm_copy_keywords', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_todo', Type.Object({ entity_type: Type.String(), user_nick: Type.Optional(Type.String()) }));
+    registerProxy('get_user_story_todo', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
+    registerProxy('get_user_bug_todo', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
+    registerProxy('get_user_task_todo', Type.Object({ workspace_id: Type.String(), options: Type.Optional(Type.Any()) }));
     registerProxy('get_user_participant_projects', Type.Object({ nick: Type.Optional(Type.String()) }));
     registerProxy('get_workflows_all_transitions', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));
     registerProxy('get_workflows_last_steps', Type.Object({ workspace_id: Type.String(), options: Type.Any() }));

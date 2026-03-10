@@ -90,20 +90,30 @@ const getEndpoints: Record<string, string> = {
   get_comments: 'comments',
   get_entity_custom_fields: 'stories/custom_fields_settings',
   get_image: 'files/get_image',
+  get_attachments: 'attachments',
+  get_attachment_download_url: 'attachments/down',
   get_iterations: 'iterations',
   get_related_bugs: 'stories/get_related_bugs',
   get_release_info: 'releases',
   get_stories_fields_info: 'stories/get_fields_info',
+  get_stories_fields_lable: 'stories/get_fields_lable',
   get_tcases: 'tcases',
+  get_tcases_custom_fields_settings: 'tcases/custom_fields_settings',
+  get_bug_custom_fields: 'bugs/custom_fields_settings',
   get_timesheets: 'timesheets',
   get_todo: 'users/todo',
+  get_user_story_todo: 'user_oauth/get_user_todo_story',
+  get_user_bug_todo: 'user_oauth/get_user_todo_bug',
+  get_user_task_todo: 'user_oauth/get_user_todo_task',
   get_user_participant_projects: 'workspaces/user_participant_projects',
+  get_category_id: 'story_categories',
   get_wiki: 'tapd_wikis',
   get_workflows_all_transitions: 'workflows/all_transitions',
   get_workflows_last_steps: 'workflows/last_steps',
   get_workflows_status_map: 'workflows/status_map',
   get_workitem_types: 'workitem_types',
-  get_commit_msg: 'svn_commits/get_scm_copy_keywords'
+  get_commit_msg: 'svn_commits/get_scm_copy_keywords',
+  get_scm_copy_keywords: 'svn_commits/get_scm_copy_keywords'
 };
 
 const postEndpoints: Record<string, string> = {
@@ -154,7 +164,7 @@ export async function tapdRpc(cfg: TapdConfig, tool: string, args: Record<string
     return tapdApiGet(cfg, path, { workspace_id: workspaceId, ...options });
   }
 
-  if (tool === 'get_bug' || tool === 'get_bug_count' || tool === 'get_comments' || tool === 'get_timesheets' || tool === 'get_tcases' || tool === 'get_iterations' || tool === 'get_release_info' || tool === 'get_related_bugs' || tool === 'get_workitem_types' || tool === 'get_commit_msg' || tool === 'get_image' || tool === 'get_workflows_all_transitions' || tool === 'get_workflows_last_steps' || tool === 'get_workflows_status_map') {
+  if (tool === 'get_bug' || tool === 'get_bug_count' || tool === 'get_comments' || tool === 'get_timesheets' || tool === 'get_tcases' || tool === 'get_iterations' || tool === 'get_release_info' || tool === 'get_related_bugs' || tool === 'get_workitem_types' || tool === 'get_commit_msg' || tool === 'get_scm_copy_keywords' || tool === 'get_image' || tool === 'get_attachments' || tool === 'get_attachment_download_url' || tool === 'get_stories_fields_info' || tool === 'get_stories_fields_lable' || tool === 'get_tcases_custom_fields_settings' || tool === 'get_bug_custom_fields' || tool === 'get_category_id' || tool === 'get_user_story_todo' || tool === 'get_user_bug_todo' || tool === 'get_user_task_todo' || tool === 'get_workflows_all_transitions' || tool === 'get_workflows_last_steps' || tool === 'get_workflows_status_map') {
     normalizeEntityIdFields(cfg, workspaceId, options);
     return tapdApiGet(cfg, getEndpoints[tool], { workspace_id: workspaceId, ...options });
   }
@@ -228,6 +238,16 @@ export async function tapdRpc(cfg: TapdConfig, tool: string, args: Record<string
     const body = normalizeEntityIdFields(cfg, workspaceId, { workspace_id: workspaceId, ...options });
     if (cfg.currentUserNick && !('owner' in body)) body.owner = cfg.currentUserNick;
     return tapdApiPost(cfg, 'timesheets', body);
+  }
+
+  if (tool === 'create_tcases_batch_save') {
+    const body = { workspace_id: workspaceId, tcases: (args as any).tcases } as Record<string, unknown>;
+    if (cfg.currentUserNick && Array.isArray((args as any).tcases)) {
+      for (const item of (args as any).tcases) {
+        if (item && typeof item === 'object' && !('creator' in item)) (item as any).creator = cfg.currentUserNick;
+      }
+    }
+    return tapdApiPost(cfg, 'tcases/batch_save', body);
   }
 
   throw new Error(`Unsupported TAPD tool: ${tool}`);
