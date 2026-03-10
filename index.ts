@@ -33,13 +33,22 @@ function buildReminderMarkdown(args: any, items: any[], cfg: any) {
   const workspaceId = String(args.workspace_id || cfg.tapdWorkspaceId || '');
   const requestedType = String(args.entity_type || 'all');
   const groups = new Map<string, any[]>();
+  const seen = new Set<string>();
 
   for (const raw of items) {
-    const item = raw?.Story || raw?.Task || raw || {};
+    const entityType = raw?.Bug ? 'bugs' : raw?.Task ? 'tasks' : raw?.Story ? 'stories' : '';
+    const item = raw?.Bug || raw?.Task || raw?.Story || raw || {};
     const status = pickFirst(item.status, item.workflow_step, item.flow_status, item.state);
     if (doneStatuses.has(status)) continue;
     const owner = pickFirst(item[assigneeField], item.owner, item.current_owner, item.user, '未分配');
     if (excludedAssignees.has(owner)) continue;
+    const id = pickFirst(item.id);
+    const title = pickFirst(item.name, item.title, '');
+    if (!id && !title) continue;
+    const key = `${entityType || 'unknown'}:${id || title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (entityType && !item.__entity_type) item.__entity_type = entityType;
     if (!groups.has(owner)) groups.set(owner, []);
     groups.get(owner)!.push(item);
   }
